@@ -2,6 +2,35 @@
 #include <unistd.h>
 #include <iostream>
 #include <string>
+#include <sys/types.h>
+#include <thread>
+#include <mutex>
+#include <chrono>
+struct Entry{
+  //delay in milliseconds
+  unsigned long long delay;
+  std::string line;
+};
+
+
+void keystroke_listen(const std::vector<Entry>& entries, std::mutex lock, int write_pipe){
+  auto start = std::chrono::high_resolution_clock::now();
+  for (std::string line; std::getline(std::cin, line);){
+    lock.lock();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed_object = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    unsigned long long delay = (unsigned long long) elapsed_object.count();
+    Entry entry;
+    entry.delay = delay;
+    entry.line.assign(line);
+    entries.push_back(entry);
+    lock.unlock();
+    std::string with_newline = line.append("\n");
+    write(write_pipe, with_newline.c_str(), sizeof(char)*strlen(with_newline.c_str()));
+    start = end;
+  }
+}
+
 int main(int argc, char **argv)
 {
   if(argc >= 3){
@@ -22,6 +51,7 @@ int main(int argc, char **argv)
       std::cerr << "Error in creating pipe" << std::endl;
       return 1;
     }
+    pid_t pid = fork();
     if (pid == 0){
       //this is the child process
       //redirect parent_to_child into standard input, standard output to child_to_parent, and standard errer to child_to_parent_error
@@ -45,12 +75,19 @@ int main(int argc, char **argv)
       argv[argc - 1] = NULL;
       execv(exec_name.c_str(), &argv[1]);
     }else if (pid > 0) {
-      // parent process
-      int j = 0;
-      for (; j < 5; ++j)
-        {
-	  printf("parent process: counter=%d\n", ++counter);
-        }
+      close(parent_to_child[0]);
+      close(child_to_parent[1]);
+      close(child_to_parent_stderr[1]);
+      dup2(1, child_to_parent[0]);
+      close(child_to_parent[0]);
+      dup2(2, child_to_parent_stderr[0]);
+      close(child_to_parent_stderr[0]);
+      int status;
+      std::vector<Entry> entries;
+      std::mutex lock;
+      std::thread reading_thread(entries, lock, parent_to_child[1]);
+      pid_t result = waitpid(pid, &status);
+      
     }
   else
     {
@@ -58,8 +95,6 @@ int main(int argc, char **argv)
       printf("fork() failed!\n");
       return 1;
     }
-
-  printf("--end of program--\n");
 
   return 0;
 }
