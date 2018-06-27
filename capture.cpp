@@ -5,22 +5,23 @@
 #include <sys/types.h>
 #include <thread>
 #include <mutex>
+#include <fstream>
 #include <chrono>
-struct Entry{
+struct entry{
   //delay in milliseconds
   unsigned long long delay;
   std::string line;
 };
 
 
-void keystroke_listen(const std::vector<Entry>& entries, std::mutex lock, int write_pipe){
+void line_listen(const std::vector<entry>& entries, std::mutex lock, int write_pipe){
   auto start = std::chrono::high_resolution_clock::now();
   for (std::string line; std::getline(std::cin, line);){
     lock.lock();
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_object = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     unsigned long long delay = (unsigned long long) elapsed_object.count();
-    Entry entry;
+    entry entry;
     entry.delay = delay;
     entry.line.assign(line);
     entries.push_back(entry);
@@ -40,15 +41,15 @@ int main(int argc, char **argv)
     int child_to_parent[2];
     int child_to_parent_stderr[2];
     if(pipe(parent_to_child) != 0){
-      std::cerr << "Error in creating pipe" << std::endl;
+      std::cerr << "error in creating pipe" << std::endl;
       return 1;
     }
     if(pipe(child_to_parent) != 0){
-      std::cerr << "Error in creating pipe" << std::endl;
+      std::cerr << "error in creating pipe" << std::endl;
       return 1;
     }
     if(pipe(child_to_parent_stderr) != 0){
-      std::cerr << "Error in creating pipe" << std::endl;
+      std::cerr << "error in creating pipe" << std::endl;
       return 1;
     }
     pid_t pid = fork();
@@ -72,7 +73,7 @@ int main(int argc, char **argv)
       close(child_to_parent_stderr[1]);
       std::size_t whitespace_location = command.find(" ");
       std::string exec_name(command, 0, whitespace_location);
-      argv[argc - 1] = NULL;
+      argv[argc - 1] = null;
       execv(exec_name.c_str(), &argv[1]);
     }else if (pid > 0) {
       close(parent_to_child[0]);
@@ -83,10 +84,24 @@ int main(int argc, char **argv)
       dup2(2, child_to_parent_stderr[0]);
       close(child_to_parent_stderr[0]);
       int status;
-      std::vector<Entry> entries;
+      std::vector<entry> entries;
       std::mutex lock;
-      std::thread reading_thread(entries, lock, parent_to_child[1]);
+      std::thread reading_thread(line_listen, entries, lock, parent_to_child[1]);
       pid_t result = waitpid(pid, &status);
+      if(result == -1){
+	std::cout << "error with running binary. terminating." << std::endl;
+      }else{
+	//write the entries.
+	std::ofstream file;
+	file.open(keylog_location);
+	for(std::vector<entry>::iterator iter = entries.begin(); iter != entries.end(); ++iter){
+	  unsigned long long delay = iter->delay;
+	  string line = iter->line;
+	  file << delay << "," << line << std::endl;
+	}
+	file.close();
+	std::cout << "done" << std::endl;
+      }
       
     }
   else
