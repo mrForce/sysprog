@@ -53,14 +53,11 @@ int main(int argc, char **argv)
     pid_t pid = fork();
     if (pid == 0){
       //this is the child process
-      //redirect parent_to_child into standard input, standard output to child_to_parent, and standard errer to child_to_parent_error
       //fd[0] is read end, fd[1] is the write end
-      /*
-	close write end of parent_to_child, and read ends of child_to_parent and child_to_parent_error
-       */
+      std::cout << "in pid == 0" << std::endl;
       close(parent_to_child[1]);
-      dup2(0, parent_to_child[0]);
-
+      dup2(parent_to_child[0], STDIN_FILENO);
+      close(parent_to_child[0]);
       std::size_t whitespace_location = command.find(" ");
       std::string exec_name(command, 0, whitespace_location);
       argv[argc - 1] = NULL;
@@ -74,6 +71,7 @@ int main(int argc, char **argv)
       std::mutex lock;
       char finished = 0;
       std::thread reading_thread(line_listen, &entries, &lock, parent_to_child[1], &finished);
+      std::cout << "Going to wait for waitpid" << std::endl;
       pid_t result = wait(NULL);
       std::cout << "Binary terminated" << std::endl;
       lock.lock();

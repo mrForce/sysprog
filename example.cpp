@@ -14,6 +14,7 @@
 
 int main(int argc, char **argv)
 {
+
   std::string line_one, line_two, line_three;
   std::getline(std::cin, line_one);
   std::getline(std::cin, line_two);
