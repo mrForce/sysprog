@@ -21,6 +21,8 @@ struct Entry{
 
 
 
+
+
 std::vector<Entry> read_entry_file(std::string filename){
   std::ifstream file;
   file.open(filename);
@@ -63,7 +65,13 @@ int main(int argc, char **argv)
       std::cerr << "Error in creating pipe" << std::endl;
       return 1;
     }
+    //make it non-blocking read 
+    if(fcntl(child_to_parent[0], F_SETFL, O_NONBLOCK) < 0){
+      exit(2);
+    }
     pid_t pid = fork();
+    std::ofstream output_file;
+    output_file.open(output_file_name, std::ios::out);
     if (pid == 0){
       //this is the child process
       //fd[0] is read end, fd[1] is the write end
@@ -82,13 +90,32 @@ int main(int argc, char **argv)
       std::vector<Entry> entries = read_entry_file(entry_file_name);
       close(parent_to_child[0]);
       close(child_to_parent[1]);
+
       for(std::vector<Entry>::iterator iter = entries.begin(); iter != entries.end(); ++iter){
 	unsigned long long delay = iter->delay;
-	std::string line = iter->line;
-	fd_set rfds;
-	struct timeval tv;
-	int retval;
+	std::string line = (iter->line).append("\n");
+	
+	auto start_time = std::chrono::high_resolution_clock::now();
+	unsigned long long total_delay = delay*multiplier;
+	std::stringstream ss;
+	while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() <= total_delay){
+	  char characters[100];
+	  ssize_t num_bytes_read = read(child_to_parent[0], characters, 99);
+	  characters[num_bytes_read] = '\0';
+	  if(num_bytes_read > 0){
+	    std::string s(characters);
+	    ss << s;
+	  }
+	}
+	output_file << ss.str();
+	char* c_string = line.c_str();
+	ssize_t num_bytes_written = 0;
+	while(num_bytes_written < strlen(c_string) + 1){
+	  num_bytes_written += write(parent_to_child[0], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]) + 1);
+	}
+	output_file << line;
       }
+      output_file.close()
     }
   }else{
     std::cout << "Wrong number of arguments" << std::endl;

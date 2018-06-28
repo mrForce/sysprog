@@ -1,7 +1,7 @@
 
 
 
-all: capture example 
+all: capture example replay
 
 capture: capture.cpp
 	g++ -g -o $@ $< -pthread
