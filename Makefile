@@ -1,7 +1,7 @@
 
 
 
-all: capture example replay
+all: capture example 
 
 capture: capture.cpp
 	g++ -g -o $@ $< -pthread
@@ -10,4 +10,4 @@ example: example.cpp
 replay: replay.cpp
 	g++ -g -o $@ $<
 clean:
-	rm -rf *.o a.out capture example replay
+	rm -rf *.o a.out capture example replay test_input

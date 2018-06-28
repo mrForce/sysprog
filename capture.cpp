@@ -6,6 +6,7 @@
 #include <string>
 #include <string.h>
 #include <vector>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <thread>
 #include <mutex>
@@ -54,9 +55,8 @@ int main(int argc, char **argv)
     if (pid == 0){
       //this is the child process
       //fd[0] is read end, fd[1] is the write end
-      std::cout << "in pid == 0" << std::endl;
       close(parent_to_child[1]);
-      dup2(parent_to_child[0], STDIN_FILENO);
+      dup2(parent_to_child[0], 0);
       close(parent_to_child[0]);
       std::size_t whitespace_location = command.find(" ");
       std::string exec_name(command, 0, whitespace_location);
