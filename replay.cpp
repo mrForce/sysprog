@@ -33,10 +33,8 @@ void read_for_time(unsigned long long total_delay, std::ofstream& output_file, i
 
     if(num_bytes_read > 0){
       std::cout << "num bytes read: " << num_bytes_read << std::endl;
-      for(int i = 0; i < num_bytes_read; i++){
-	if(characters[i] > 0){
+      for(int i = 0; i < num_bytes_read; i++){       
 	  char_vec.push_back(characters[i]);
-	}
       }
     }
   }
@@ -152,8 +150,8 @@ int main(int argc, char **argv)
 	//num_bytes_written = write(parent_to_child[1], c_string, strlen(c_string) + 1);
 	//std::cout << "Num bytes written: " << num_bytes_written << std::endl;
 	
-	while(num_bytes_written < strlen(c_string) + 1){
-	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]) + 1);	  
+	while(num_bytes_written < strlen(c_string)){
+	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]));	  
 	}
 	output_file << line;
       }
