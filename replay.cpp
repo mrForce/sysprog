@@ -2,11 +2,13 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <sstream>
 #include <sys/wait.h> 
 #include <iostream>
 #include <string>
 #include <string.h>
 #include <vector>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <thread>
 #include <mutex>
@@ -48,7 +50,9 @@ int main(int argc, char **argv)
   /* 
      Four args: entry file, multiplier, command,  output file
   */
-  if(argc >= 5){
+  if(argc < 5){
+    std::cout << "Usage: ./replay entry_file_name multiplier exec_name (exec args) output_file_name" << std::endl;
+  }else{
     std::string entry_file_name(argv[1]);
     std::string multiplier_string(argv[2]);
     int multiplier = std::stoi(multiplier_string);
@@ -81,8 +85,6 @@ int main(int argc, char **argv)
       close(parent_to_child[0]);
       dup2(child_to_parent[1], 1);
       close(child_to_parent[1]);
-      std::size_t whitespace_location = command.find(" ");
-      std::string exec_name(command, 0, whitespace_location);
       argv[argc - 1] = NULL;
       std::cout << "Going to call execv";
       execv(exec_name.c_str(), &argv[3]);
@@ -103,24 +105,21 @@ int main(int argc, char **argv)
 	  ssize_t num_bytes_read = read(child_to_parent[0], characters, 99);
 	  characters[num_bytes_read] = '\0';
 	  if(num_bytes_read > 0){
+	    std::cout << "num bytes read: " << num_bytes_read << std::endl;
 	    std::string s(characters);
 	    ss << s;
 	  }
 	}
 	output_file << ss.str();
-	char* c_string = line.c_str();
+	const char* c_string = line.c_str();
 	ssize_t num_bytes_written = 0;
 	while(num_bytes_written < strlen(c_string) + 1){
 	  num_bytes_written += write(parent_to_child[0], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]) + 1);
 	}
 	output_file << line;
       }
-      output_file.close()
+      output_file.close();
     }
-  }else{
-    std::cout << "Wrong number of arguments" << std::endl;
-    return 1;
   }
-
   return 0;
 }
