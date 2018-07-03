@@ -54,11 +54,8 @@ std::vector<Entry> read_entry_file(std::string filename){
   file.open(filename);
   std::string line;
   std::vector<Entry> entries;
-  int i = 0;
   while(std::getline(file, line)){
     std::size_t comma_location = line.find(",");
-    std::cout << "i: " << i << std::endl;
-    i++;
     if(comma_location == std::string::npos){
       std::cout << "ERROR! No comma in entry file line" << std::endl;
       exit(1);
@@ -99,8 +96,8 @@ int main(int argc, char **argv)
       std::cerr << "Error in creating pipe" << std::endl;
       return 1;
     }
-    //make it non-blocking read
     
+    /* Read non-blocking from child.*/
     if(fcntl(child_to_parent[0], F_SETFL, O_NONBLOCK) < 0){
       exit(2);
     }
@@ -156,8 +153,8 @@ int main(int argc, char **argv)
 	//std::cout << "Num bytes written: " << num_bytes_written << std::endl;
 	
 	while(num_bytes_written < strlen(c_string) + 1){
-	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]) + 1);
-	  }
+	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]) + 1);	  
+	}
 	output_file << line;
       }
       unsigned long long time_ull = (unsigned long long) end_wait_time;
