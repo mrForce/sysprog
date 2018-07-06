@@ -27,8 +27,5 @@ int main(int argc, char **argv)
     std::cout << line_two << std::endl;
     std::cout << line_one << std::endl;
   }
-  while(1){
-    std::cout << "hello";
-  }
   return 0;
 }
