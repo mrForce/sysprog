@@ -110,7 +110,6 @@ int main(int argc, char **argv)
       //std::cout << "Exec name: " << exec_name << std::endl;
       close(parent_to_child[1]);
       close(child_to_parent[0]);
-      close(child_to_parent_error[0]);
       dup2(parent_to_child[0], 0);
       close(parent_to_child[0]);
       dup2(child_to_parent[1], 1);

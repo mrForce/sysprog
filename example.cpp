@@ -14,13 +14,21 @@
 
 int main(int argc, char **argv)
 {
-
+  int num_repeat = 1;
+  if(argc == 2){
+    num_repeat = atoi(argv[1]);
+  }
   std::string line_one, line_two, line_three;
   std::getline(std::cin, line_one);
   std::getline(std::cin, line_two);
   std::getline(std::cin, line_three);
-  std::cout << line_three << std::endl;
-  std::cout << line_two << std::endl;
-  std::cout << line_one << std::endl;
+  for(int i = 0; i < num_repeat; i++){    
+    std::cout << line_three << std::endl;
+    std::cout << line_two << std::endl;
+    std::cout << line_one << std::endl;
+  }
+  while(1){
+    std::cout << "hello";
+  }
   return 0;
 }

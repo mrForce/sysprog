@@ -1,0 +1,39 @@
+There's two parts to this project: the capture program, and the replay program.
+
+
+
+The capture program launches the program that it is told to launch (more on that in a bit), and monitors the communication between the program and the user. It captures when the user types (by capturing each line), and records the amount of time that passes between each line being entered. Then, it writes the amount of time that passes between each line input to a file. 
+
+The first argument to the capture program is the executable to execute. Any arguments that you want to be passed to the executable follow its name. The last argument to the capture program is the file to write the captured input (and timing information) to. We'll call this file the "entry file". For example, suppose we have an executable called example, which takes in one argument, *n*, from the command line. It captures three lines from standard input, and then re-outputs those lines in reverse order *n* times.
+
+So, we call: "./capture example 2 test.txt"
+
+This launches example, passing the 2 parameter to it. Then, the user enters in the lines "hi", "bye" and "jordan". There are 2706 milliseconds between the launch of example, and the user entering "hi" (and pressing the return key), and then another 733 milliseconds until the user types "bye" and presses the return key, and then another 883 milliseconds until the user types "jordan" and presses enter. Then, test.txt looks like this:
+
+2706,hi
+733,bye
+883,jordan
+
+
+The replay program takes in the arguments: entry_file_name multiplier end_wait_time exec_name (exec args) output_file_name
+
+The entry_file_name is the path to the file created by capture. The multiplier is a positive integer that scales the amount of time between each line input when re-playing. The end_wait_time is the number of seconds to wait between sending the last line of input, and terminating the child program and exiting. It is a positive integer. The exec_name is the executable to execute, and the exec_args are just the arguments to pass to it. replay captures the communication between itself and the child program (in both directions), and writes it to output_file_name.
+
+For example, let's say we wanted to replay what we captured in test.txt with example, using a multiplier of 3, and an end_wait_time of 4 seconds, and write the session communication to output.txt. We would type:
+
+./replay test.txt 3 4 example 2 output.txt
+
+output.txt should look like this after replay is done executing:
+
+hi
+bye
+jordan
+jordan
+bye
+hi
+jordan
+bye
+hi
+jordan
+bye
+hi

@@ -43,6 +43,10 @@ void line_listen(std::vector<Entry>* entries, std::mutex* lock, int write_pipe, 
 
 int main(int argc, char **argv)
 {
+  if(argc < 3){
+    std::cout << "Usage: ./capture exec_name [exec args] output_file" << std::endl;
+    return 1;
+  }
   if(argc >= 3){
     std::string command = argv[1];
     std::string keylog_location(argv[argc-1]);
