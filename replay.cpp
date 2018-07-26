@@ -33,14 +33,14 @@ void read_for_time(unsigned long long total_delay, std::ofstream& output_file, i
     ssize_t num_bytes_read = read(read_pipe, characters, 99);
 
     if(num_bytes_read > 0){
-      std::cout << "num bytes read: " << num_bytes_read << std::endl;
+      //std::cout << "num bytes read: " << num_bytes_read << std::endl;
       for(int i = 0; i < num_bytes_read; i++){       
 	  char_vec.push_back(characters[i]);
       }
     }
   }
   free(characters);
-  std::cout << "Time spent reading: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
+  //  std::cout << "Time spent reading: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
   for(std::vector<char>::iterator iter = char_vec.begin(); iter != char_vec.end(); ++iter){
     output_file << *iter;
   }
@@ -62,7 +62,7 @@ std::vector<Entry> read_entry_file(std::string filename){
     std::string delay_string = line.substr(0, comma_location);
     unsigned long long num_milliseconds = std::stoull(delay_string);
     std::string typed_line = line.substr(comma_location + 1);
-    std::cout << "Typed line: " << typed_line << std::endl << std::flush;
+    //std::cout << "Typed line: " << typed_line << std::endl << std::flush;
     entries.emplace_back(num_milliseconds, typed_line);
   }
   return entries;
@@ -125,11 +125,11 @@ int main(int argc, char **argv)
       close(child_to_parent[1]);
       int i = 0;
       for(std::vector<Entry>::iterator iter = entries.begin(); iter != entries.end(); ++iter){
-	std::cout << "i: " << i << std::endl;
+	//std::cout << "i: " << i << std::endl;
 	i++;
 	unsigned long long delay = iter->delay;
 	std::string line = (iter->line).append("\n");
-	std::cout << "Line: " << line;
+	//std::cout << "Line: " << line;
 	
 	unsigned long long total_delay = delay*multiplier;
 	read_for_time(total_delay, output_file, child_to_parent[0]);
