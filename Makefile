@@ -8,6 +8,6 @@ capture: capture.cpp
 example: example.cpp
 	clang++ -o $@ $< 
 replay: replay.cpp
-	g++ -g -o $@ $<
+	g++ -g -lutil -o $@ $< 
 clean:
 	rm -rf *.o a.out capture example replay test_input

@@ -2,8 +2,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <pty.h>
+#include <utmp.h>
+
 #include <sstream>
-#include <sys/wait.h> 
+#include <sys/wait.h>
+#include <poll.h>
 #include <iostream>
 #include <string>
 #include <string.h>
@@ -15,6 +19,8 @@
 #include <fstream>
 #include <chrono>
 #include <errno.h>
+
+
 struct Entry{
   //delay in milliseconds
   unsigned long long delay;
@@ -22,26 +28,51 @@ struct Entry{
   Entry(unsigned long long d, std::string& l) : delay(d), line(std::move(l)){}
 };
 
+void print_received(std::string str, std::ofstream& out){
+  out << "\e[34m" << str <<  "\e[0m" ;
+}
+
+void print_sent(std::string str, std::ofstream& out){
+  out << "\e[33m" << str << "\e[0m";
+
+}
 
 std::string read_for_time(unsigned long long total_delay, std::ofstream& output_file, int read_pipe ){
   auto start_time = std::chrono::high_resolution_clock::now();
-  
-
-  char* characters = (char*) malloc(100*sizeof(char));
-  /* I use a vector here because I want to store the bytes that are written, without any string processing*/
   std::string s;
+  int num_characters_read;
+  struct pollfd file_descriptors[1];
+  file_descriptors[0].fd = read_pipe;
+  //set this to listen for read events
+  file_descriptors[0].events = POLLIN;
   while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() <= total_delay){
-    ssize_t num_bytes_read = read(read_pipe, characters, 20);
-    if(num_bytes_read > 0){
-      s.append(characters, num_bytes_read);
+    poll(file_descriptors, 1, total_delay);
+    if(file_descriptors[0].revents & POLLIN){
+      char* characters = (char*) malloc(100*sizeof(char));
+      char keep_going = 1;
+      do{
+	num_characters_read = read(read_pipe, characters, 99);
+	s.append(characters, num_characters_read);
+	if(poll(file_descriptors, 1, 0) < 1){
+	  keep_going = 0;
+	}
+      }while(keep_going);
+    }else{
+      if(file_descriptors[0].revents & POLLERR){
+	std::cerr << "POLLERR in reading\n";
+      }
+      if(file_descriptors[0].revents & POLLHUP){
+	std::cerr << "POLLHUP, connection closed\n";
+      }
+
+      if(file_descriptors[0].revents & POLLNVAL){
+	std::cerr << "POLLNVAL, read_pipe is not open\n";
+      }
     }
   }
-  free(characters);
-  //  std::cout << "Time spent reading: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
-  //for(std::vector<char>::iterator iter = char_vec.begin(); iter != char_vec.end(); ++iter){
-    //std::cerr << *iter;
-    //output_file << *iter;
-  //}
+
+
+  
   return s;
 
 }
@@ -86,73 +117,102 @@ int main(int argc, char **argv)
     //std::vector<Entry> entries = read_entry_file(entry_file_name);
 
     int parent_to_child[2];
-    int child_to_parent[2];
-
+    //int child_to_parent[2];
+    int master, slave;
+    openpty(&master, &slave, NULL, NULL, NULL);
     if(pipe(parent_to_child) != 0){
       std::cerr << "error in creating pipe" << std::endl;
       return 1;
     }
-    if(pipe(child_to_parent) != 0){
+    /*if(pipe(child_to_parent) != 0){
       std::cerr << "Error in creating pipe" << std::endl;
       return 1;
-    }
-    
-    /* Read non-blocking from child. That way, if the child process stops writing, we aren't stuck forever. */
-    if(fcntl(child_to_parent[0], F_SETFL, O_NONBLOCK) < 0){
+
+      }*/
+    /*if(fcntl(child_to_parent[0], F_SETFL, O_NONBLOCK) < 0){ 
       exit(2);
-      }
-    
+      }*/
+    //int fw = open("hello.txt", O_APPEND|O_WRONLY);
     pid_t pid = fork();
     
+
     if (pid == 0){
+      login_tty(slave);
+      close(master);
       //this is the child process
       //fd[0] is read end, fd[1] is the write end
       //std::cout << "Exec name: " << exec_name << std::endl;
       close(parent_to_child[1]);
-      close(child_to_parent[0]);
-      dup2(parent_to_child[0], 0);
+      //close(child_to_parent[0]);
+      
+      dup2(parent_to_child[0], STDIN_FILENO);
       close(parent_to_child[0]);
-      dup2(child_to_parent[1], 1);
-      close(child_to_parent[1]);
+      /*dup2(child_to_parent[1], STDOUT_FILENO);
+      
+	close(child_to_parent[1]);*/
+
+      //close(child_to_parent[1]);
+      //int b = dup2(fw, 1);
+      //close(child_to_parent[1]);
+      //close(fw);
+      //dup2(fw, 1);
+      //close(fw);
+      //close(parent_to_child[0]);
+      //close(child_to_parent[1]);
+      //close(parent_to_child[1]);
+      //close(child_to_parent[0]);
       argv[argc - 1] = NULL;
-      execv(exec_name.c_str(), &argv[4]);
+      
+      execvp(exec_name.c_str(), &argv[4]);
       std::cerr << "execv failed" << std::endl;
     }else if (pid > 0) {
+      /* Read non-blocking from child. That way, if the child process stops writing, we aren't stuck forever. */
+     
+      /*
+      if(close(parent_to_child[0]) == -1){
+	std::cerr << "ERROR IN CLOSING PARENT_TO_CHILD[0]\n";
+      }
+      if(close(child_to_parent[1]) == -1){
+	std::cerr << "ERROR IN CLOSING CHILD_TO_PARENT[1]\n";
+	}*/
+      std::string buf;
+      close(slave);
       std::vector<Entry> entries = read_entry_file(entry_file_name);
       std::ofstream output_file;
       std::cout << output_file_name;
       std::cout.flush();
       output_file.open(output_file_name, std::ios::out);
-      close(parent_to_child[0]);
-      close(child_to_parent[1]);
+      
       int i = 0;
       for(std::vector<Entry>::iterator iter = entries.begin(); iter != entries.end(); ++iter){
-	std::cerr << "i: " << i << std::endl;
 
 	i++;
 	unsigned long long delay = iter->delay;
-	std::string line = (iter->line).append("\n");
+	std::string line = iter->line;
+	line.append("\n");
 	//std::cout << "Line: " << line;
 	
 	unsigned long long total_delay = delay*multiplier;
-	std::string s = read_for_time(total_delay, output_file, child_to_parent[0]);
-	std::cerr << s;
-	output_file << s;
+	
+	std::string s = read_for_time(total_delay, output_file, master);
+	print_received(s, output_file);
 	output_file.flush();
 	const char* c_string = line.c_str();
 	ssize_t num_bytes_written = 0;
 	while(num_bytes_written < strlen(c_string)){
-
-	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]));	  
+	  //std::cerr << &c_string[num_bytes_written];
+	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], 1);//strlen(&c_string[num_bytes_written]));
+	  
 	}
-	std::string c = "\n";
-	write(parent_to_child[1], &c, 2);
-	output_file << line;
+	//std::string c = "\n";
+	//write(parent_to_child[1], &c, 2);c
+	print_sent(line, output_file);
 	output_file.flush();
       }
+
       unsigned long long time_ull = (unsigned long long) end_wait_time;
-      std::string s = read_for_time(time_ull*1000, output_file, child_to_parent[0]);
-      output_file << s;
+      std::string s = read_for_time(time_ull*1000, output_file, master);
+      print_received(s, output_file);
       output_file.flush();
       output_file.close();
     }
