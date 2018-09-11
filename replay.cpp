@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     std::string exec_name(argv[4]);
     std::string output_file_name(argv[argc-1]);
     
-    std::vector<Entry> entries = read_entry_file(entry_file_name);
+    //std::vector<Entry> entries = read_entry_file(entry_file_name);
 
     int parent_to_child[2];
     int child_to_parent[2];
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
       execv(exec_name.c_str(), &argv[4]);
       std::cerr << "execv failed" << std::endl;
     }else if (pid > 0) {
-      //std::vector<Entry> entries = read_entry_file(entry_file_name);
+      std::vector<Entry> entries = read_entry_file(entry_file_name);
       std::ofstream output_file;
       std::cout << output_file_name;
       std::cout.flush();
@@ -127,7 +127,8 @@ int main(int argc, char **argv)
       close(child_to_parent[1]);
       int i = 0;
       for(std::vector<Entry>::iterator iter = entries.begin(); iter != entries.end(); ++iter){
-	//std::cout << "i: " << i << std::endl;
+	std::cerr << "i: " << i << std::endl;
+
 	i++;
 	unsigned long long delay = iter->delay;
 	std::string line = (iter->line).append("\n");
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
 	
 	unsigned long long total_delay = delay*multiplier;
 	std::string s = read_for_time(total_delay, output_file, child_to_parent[0]);
-	
+	std::cerr << s;
 	output_file << s;
 	output_file.flush();
 	const char* c_string = line.c_str();
