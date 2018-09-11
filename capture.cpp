@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <signal.h>
+#include <sstream>
 #include <sys/wait.h> 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <string.h>
 #include <vector>
@@ -18,6 +21,13 @@ struct Entry{
   std::string line;
 };
 
+int child_process_id;
+
+static void handler(int signal_number){
+  if(signal_number == SIGINT){
+    kill(child_process_id, SIGKILL);
+  }
+}
 
 void line_listen(std::vector<Entry>* entries, std::mutex* lock, int write_pipe, char* finished){
   auto start = std::chrono::high_resolution_clock::now();
@@ -43,6 +53,13 @@ void line_listen(std::vector<Entry>* entries, std::mutex* lock, int write_pipe, 
 
 int main(int argc, char **argv)
 {
+  struct sigaction sa;
+  sa.sa_handler = handler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART;
+  if (sigaction(SIGINT, &sa, NULL) == -1){
+    std::cout << "SOMETHING WRONG";
+  }
   if(argc < 3){
     std::cout << "Usage: ./capture exec_name [exec args] output_file" << std::endl;
     return 1;
@@ -69,6 +86,7 @@ int main(int argc, char **argv)
       execv(exec_name.c_str(), &argv[1]);
       std::cout << "done with execv";
     }else if (pid > 0) {
+      child_process_id = pid;
       close(parent_to_child[0]);
       int status;
       std::vector<Entry> entries;

@@ -14,6 +14,7 @@
 #include <mutex>
 #include <fstream>
 #include <chrono>
+#include <errno.h>
 struct Entry{
   //delay in milliseconds
   unsigned long long delay;
@@ -22,28 +23,26 @@ struct Entry{
 };
 
 
-void read_for_time(unsigned long long total_delay, std::ofstream& output_file, int read_pipe ){
+std::string read_for_time(unsigned long long total_delay, std::ofstream& output_file, int read_pipe ){
   auto start_time = std::chrono::high_resolution_clock::now();
   
 
   char* characters = (char*) malloc(100*sizeof(char));
   /* I use a vector here because I want to store the bytes that are written, without any string processing*/
-  std::vector<char> char_vec;
+  std::string s;
   while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() <= total_delay){
-    ssize_t num_bytes_read = read(read_pipe, characters, 99);
-
+    ssize_t num_bytes_read = read(read_pipe, characters, 20);
     if(num_bytes_read > 0){
-      //std::cout << "num bytes read: " << num_bytes_read << std::endl;
-      for(int i = 0; i < num_bytes_read; i++){       
-	  char_vec.push_back(characters[i]);
-      }
+      s.append(characters, num_bytes_read);
     }
   }
   free(characters);
   //  std::cout << "Time spent reading: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << std::endl;
-  for(std::vector<char>::iterator iter = char_vec.begin(); iter != char_vec.end(); ++iter){
-    output_file << *iter;
-  }
+  //for(std::vector<char>::iterator iter = char_vec.begin(); iter != char_vec.end(); ++iter){
+    //std::cerr << *iter;
+    //output_file << *iter;
+  //}
+  return s;
 
 }
 
@@ -83,6 +82,7 @@ int main(int argc, char **argv)
     int end_wait_time = std::stoi(end_wait_string);
     std::string exec_name(argv[4]);
     std::string output_file_name(argv[argc-1]);
+    
     std::vector<Entry> entries = read_entry_file(entry_file_name);
 
     int parent_to_child[2];
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
     /* Read non-blocking from child. That way, if the child process stops writing, we aren't stuck forever. */
     if(fcntl(child_to_parent[0], F_SETFL, O_NONBLOCK) < 0){
       exit(2);
-    }
+      }
     
     pid_t pid = fork();
     
@@ -120,6 +120,8 @@ int main(int argc, char **argv)
     }else if (pid > 0) {
       //std::vector<Entry> entries = read_entry_file(entry_file_name);
       std::ofstream output_file;
+      std::cout << output_file_name;
+      std::cout.flush();
       output_file.open(output_file_name, std::ios::out);
       close(parent_to_child[0]);
       close(child_to_parent[1]);
@@ -132,16 +134,25 @@ int main(int argc, char **argv)
 	//std::cout << "Line: " << line;
 	
 	unsigned long long total_delay = delay*multiplier;
-	read_for_time(total_delay, output_file, child_to_parent[0]);
+	std::string s = read_for_time(total_delay, output_file, child_to_parent[0]);
+	
+	output_file << s;
+	output_file.flush();
 	const char* c_string = line.c_str();
 	ssize_t num_bytes_written = 0;
 	while(num_bytes_written < strlen(c_string)){
+
 	  num_bytes_written += write(parent_to_child[1], &c_string[num_bytes_written], strlen(&c_string[num_bytes_written]));	  
 	}
+	std::string c = "\n";
+	write(parent_to_child[1], &c, 2);
 	output_file << line;
+	output_file.flush();
       }
       unsigned long long time_ull = (unsigned long long) end_wait_time;
-      read_for_time(time_ull*1000, output_file, child_to_parent[0]);
+      std::string s = read_for_time(time_ull*1000, output_file, child_to_parent[0]);
+      output_file << s;
+      output_file.flush();
       output_file.close();
     }
   }

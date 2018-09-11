@@ -20,6 +20,7 @@ int main(int argc, char **argv)
   }
   std::string line_one, line_two, line_three;
   std::getline(std::cin, line_one);
+  std::cout << "HELLO!" << std::endl;
   std::getline(std::cin, line_two);
   std::getline(std::cin, line_three);
   for(int i = 0; i < num_repeat; i++){    
