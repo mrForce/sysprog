@@ -53,6 +53,7 @@ void line_listen(std::vector<Entry>* entries, std::mutex* lock, int write_pipe, 
 
 int main(int argc, char **argv)
 {
+
   struct sigaction sa;
   sa.sa_handler = handler;
   sigemptyset(&sa.sa_mask);
@@ -82,7 +83,7 @@ int main(int argc, char **argv)
       std::size_t whitespace_location = command.find(" ");
       std::string exec_name(command, 0, whitespace_location);
       argv[argc - 1] = NULL;
-      std::cout << "Going to call execv";
+
       execv(exec_name.c_str(), &argv[1]);
       std::cout << "done with execv";
     }else if (pid > 0) {
@@ -93,7 +94,7 @@ int main(int argc, char **argv)
       std::mutex lock;
       char finished = 0;
       std::thread reading_thread(line_listen, &entries, &lock, parent_to_child[1], &finished);
-      std::cout << "Going to wait for waitpid" << std::endl;
+      //std::cout << "Going to wait for waitpid" << std::endl;
       pid_t result = wait(NULL);
       std::cout << "Binary terminated" << std::endl;
       lock.lock();
@@ -115,7 +116,7 @@ int main(int argc, char **argv)
 	file.close();
 	std::cout << "done" << std::endl;
       }
-      
+            
     }
   else
     {

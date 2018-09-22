@@ -101,10 +101,10 @@ std::vector<Entry> read_entry_file(std::string filename){
 int main(int argc, char **argv)
 {
   /* 
-     At least 6 args: entry file, multiplier, time before stopping, command,  output file
+     At least 7 args: entry file, multiplier, time before stopping, command,  output file, valgrind
   */
-  if(argc < 6){
-    std::cout << "Usage: ./replay entry_file_name multiplier end_wait_time exec_name (exec args) output_file_name" << std::endl;
+  if(argc < 7){
+    std::cout << "Usage: ./replay entry_file_name multiplier end_wait_time  exec_name (exec args) output_file_name valgrind" << std::endl;
   }else{
     std::string entry_file_name(argv[1]);
     std::string multiplier_string(argv[2]);
@@ -112,8 +112,9 @@ int main(int argc, char **argv)
     int multiplier = std::stoi(multiplier_string);
     int end_wait_time = std::stoi(end_wait_string);
     std::string exec_name(argv[4]);
-    std::string output_file_name(argv[argc-1]);
-    
+    std::string output_file_name(argv[argc-2]);
+    std::string valgrind_string(argv[argc-1]);
+    int valgrind = std::stoi(valgrind_string);
     //std::vector<Entry> entries = read_entry_file(entry_file_name);
 
     int parent_to_child[2];
@@ -161,9 +162,33 @@ int main(int argc, char **argv)
       //close(child_to_parent[1]);
       //close(parent_to_child[1]);
       //close(child_to_parent[0]);
-      argv[argc - 1] = NULL;
       
-      execvp(exec_name.c_str(), &argv[4]);
+
+      if(!valgrind){
+	argv[argc - 2] = NULL;
+	execv(exec_name.c_str(), &argv[4]);
+      }else{
+	char* args[argc - 4];
+	char vs[] = "valgrind";
+	
+	args[0] = vs;
+	//argv[4] is the executable name
+	if(strchr(argv[4], '/')){
+	  args[1] = argv[4];
+	}else{
+	  char* thing = (char*) malloc(sizeof(char)*(3 + strlen(argv[4])));
+	  thing[0] = '\0';
+	  strcat(thing, "./");
+	  strcat(thing, argv[4]);
+	  args[1] = thing;
+	}
+	size_t i = 0;
+	for(i = 0; i < argc - 7; i++){
+	  args[i + 2] = argv[i + 5];
+	}
+	args[i + 2] = NULL;
+	execvp("valgrind", args);
+      }
       std::cerr << "execv failed" << std::endl;
     }else if (pid > 0) {
       /* Read non-blocking from child. That way, if the child process stops writing, we aren't stuck forever. */
